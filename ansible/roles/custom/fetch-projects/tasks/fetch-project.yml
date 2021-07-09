@@ -1,0 +1,15 @@
+- set_fact:
+    project_config_dir: "{{ project_config_path | replace('__project__', project) }}" 
+    project_sync_dir: "{{ sync_path | replace('__project__', project) }}" 
+    project_dir: "{{ project_path | replace('__project__', project) }}" 
+
+- name: "Sync (pull) {{ project }} from {{ current_host.name }} to local"
+  ansible.posix.synchronize:
+    mode: pull
+    delete: "yes"
+    src: "{{ www_dir }}/{{ project }}/"
+    dest: "{{ project_sync_dir }}/"
+    rsync_opts:
+      - "--exclude=sites/default/files/*"
+      - "--exclude=web/sites/default/files/*"
+      - "--exclude=.ddev"

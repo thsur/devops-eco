@@ -1,0 +1,19 @@
+---
+# Ansible inventory file
+# 
+# Cf. also https://docs.ansible.com/ansible/latest/scenario_guides/guide_vagrant.html
+local:
+  hosts:
+    localhost:
+      ansible_connection: local
+      ansible_python_interpreter: /usr/bin/python3
+remote:
+  hosts:
+    <% config.core[:hosts].each do |host, data| %>
+    <%= host %>:
+      ansible_user: <%= config.core[:remote_user] %>
+      ansible_become: yes
+      ansible_become_user: <%= config.core[:remote_user] %>
+      www_dir: <%= data['www'] %>
+      devops_dir: <%= config[:devops_dir] %>
+    <% end %>

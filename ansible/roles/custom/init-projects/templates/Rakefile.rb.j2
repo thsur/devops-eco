@@ -1,0 +1,105 @@
+devops_dir = "{{ devops_dir }}" 
+src_dir    = "{{ project_sync_dir }}"
+root_dir   = __dir__
+db         = "{{ current_host.config.db }}" 
+
+namespace :watch do
+
+    desc "Watch theme folder for changes."
+    task :themes do
+        sh ".project/bin/watch-themes.sh"
+    end
+
+    desc "Watch module folder for changes."
+    task :modules do
+        sh ".project/bin/watch-modules.sh"
+    end
+
+    desc "Watch root folder for changes (without child dirs)."
+    task :root do
+        sh ".project/bin/watch-top.sh"
+    end
+
+    desc "Watch all folders for changes."
+    task :all do
+        sh ".project/bin/watch-all.sh"
+    end
+end
+
+namespace :ddev do
+
+    desc "Init ddev container."
+    task :init do
+        cd(src_dir) do
+            sh "#{root_dir}/.project/bin/init-ddev.sh"
+        end
+    end
+
+    desc "Start ddev container."
+    task :start do
+        cd(src_dir) do
+            sh "ddev start"
+        end
+    end
+
+    desc "Stop ddev container."
+    task :stop do
+        cd(src_dir) do
+            sh "ddev stop"
+        end
+    end
+
+    desc "SSH into ddev container."
+    task :conn do
+        cd(src_dir) do
+            sh "ddev ssh"
+        end
+    end
+end
+
+desc "Own remote project."
+task :own do
+    # Cf. https://www.cyberciti.biz/faq/unix-linux-execute-command-using-ssh/
+    sh "ssh -t {{ current_host.name }} 'sudo chown --recursive {{ custom.remote_user }} {{ www_dir }}/{{ project }}'"
+end
+
+desc "Fetch all folders from remote."
+task :fetch do
+    cd(devops_dir) do
+        sh "rake projects:fetch -- {{ current_host.name }} {{ project }}"
+    end
+end
+
+desc "Fetch DB."
+task :fetch_db do
+    sh "ssh -t {{ current_host.name }} 'sudo mysqldump --lock-tables --databases #{db}  | bzip2 -c > #{db}.sql.bz2'"
+    sh "rsync {{ current_host.name }}:~/#{db}.sql.bz2 .project/tmp/ && bzip2 -df .project/tmp/#{db}.sql.bz2"
+    sh "ssh {{ current_host.name }} rm #{db}.sql.bz2"
+end
+
+desc "Import DB."
+task :import_db do
+    file = File.join(root_dir, ".project/tmp/#{db}.sql")
+
+    Rake::Task['fetch_db'].invoke unless File.exist? file
+    
+    cd(src_dir) do
+        sh "ddev import-db -f #{file}"
+    end
+end
+
+desc "Re-init project (updates ./project and probably this file)."
+task :re_init do
+    cd(devops_dir) do
+        sh "rake projects:init -- {{ current_host.name }} {{ project }}"
+    end
+end
+
+desc "Push all folders to remote."
+task :push do
+    sh "rsync -avz --exclude=.ddev --exclude=settings.ddev.php --exclude=sites/default/files {{ project_sync_dir }}/ {{ current_host.name }}:{{ www_dir }}/{{ project }}/"
+end
+
+task :default do
+    sh "rake --tasks"
+end

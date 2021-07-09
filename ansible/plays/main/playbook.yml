@@ -1,0 +1,135 @@
+# 
+# Extensive documentation regarding Yaml (and what Ruby makes of it) can be found in
+# Ruby's Yaml cookbook:
+# 
+# http://yaml.org/YAML_for_ruby.html
+# 
+---
+- hosts: remote
+  debugger: never
+
+  # Props & Values
+
+  vars:
+    current_host: 
+      name: "{{ inventory_hostname }}" 
+      config: "{{ custom.hosts[inventory_hostname] }}" 
+    project_path: "{{ custom.base_dir.root + custom.base_dir.project.base }}" 
+    project_config_path: "{{ custom.base_dir.root + custom.base_dir.project.base }}/.project" 
+    sync_path: "{{ custom.base_dir.root + custom.base_dir.project.base + custom.base_dir.project.sync }}" 
+  
+  # Preflight
+
+  pre_tasks:
+
+    # See https://www.jeffgeerling.com/blog/2016/require-minimum-ansible-version-your-playbook
+    # 
+    - name: Verify Ansible version requirements.
+      assert:
+        that: "ansible_version.full is version_compare('2.9.1', '>=')"
+        msg: Ansible >= 2.9.1 required, please update.
+
+  # Play
+
+  tasks:
+    
+    # Give some info about what's happening
+
+    - name: Info
+      debug:
+        msg: |
+          Host is {{ inventory_hostname }}
+          Remote dir is {{ www_dir }}
+          Local sync dir map (including placeholders) is {{ sync_path }}
+      tags:
+        - always
+
+    # Get list of projects
+    #
+    # When a host has an empty (but defined) setting 'projects' in the core config,
+    # iterate over _all_ projects defined on the server (i.e., all top-level folders
+    # beneath {{ www_dir }}).
+
+    - name: "Assemble list of projects from given config"
+      set_fact:
+        projects: "{{ current_host.config.projects }}"
+      when: current_host.config.projects is defined and (current_host.config.projects | length > 0)
+      tags:
+        - always
+
+    - command: "ls {{ www_dir }}"
+      register: remote_dir
+      when: current_host.config.projects is defined
+      tags:
+        - always
+
+    - name: "Assemble list of projects from remote top-level diretories"
+      set_fact:
+        projects: "{{ remote_dir.stdout_lines }}"
+      when: remote_dir is defined and (current_host.config.projects | length == 0)
+      tags:
+        - always
+
+    - name: "Limit list of projects"
+      set_fact:
+        projects: "{{ limit_projects }}"
+      when: limit_projects is defined and (remote_dir.stdout_lines | intersect(limit_projects) | length > 0)
+      tags:
+        - always
+
+    # Check for empty or invalid projects comming in from the commandline or the core config.
+
+    - name: "Invalid project(s)"
+      fail: 
+        msg: "Invalid project(s) given on command line for {{ current_host.name }}. Ending play for this host."
+      when: limit_projects is defined and (remote_dir.stdout_lines | intersect(limit_projects) | length == 0)
+      tags:
+        - always
+
+    - name: "Empty projects list"
+      fail: 
+        msg: "No (valid) projects given for {{ current_host.name }}. Ending play for this host."
+      when: projects is not defined or (projects | length == 0)
+      tags:
+        - always
+    
+    # Give some feedback about which projects we're about to iterate over 
+
+    - name: "Projects being operated on"
+      debug: 
+        msg: "{{ projects }}"
+      tags:
+        - always
+    
+    # What to do
+    #
+    # For different approaches for applying tags with the included roles,
+    # cf. https://docs.ansible.com/ansible/latest/user_guide/playbooks_tags.html#tag-inheritance-for-includes-blocks-and-the-apply-keyword
+
+    - name: Init projects
+      include_role: 
+        name: init-projects
+        tasks_from: init-project
+        apply:
+          tags:
+            - init 
+      loop: "{{ projects }}"
+      loop_control:
+        loop_var: project
+      when: projects | length > 0 
+      tags:
+        - init
+    
+    - name: Fetch projects
+      include_role: 
+        name: fetch-projects
+        tasks_from: fetch-project
+        apply:
+          tags:
+            - fetch 
+      loop: "{{ projects }}"
+      loop_control:
+        loop_var: project
+      when: projects | length > 0 
+      tags:
+        - fetch

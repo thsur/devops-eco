@@ -1,0 +1,28 @@
+---
+remote_user: nn
+
+# Local base dir. Acts as container for fetched remote projects.
+# 
+base_dir: 
+  root: "../sites" # Relative to Rakefile dir
+  project:
+    base: "/__project__" # Placeholder, gets replaced by a project's URL
+    sync: "/build/live"  
+
+# Limit all interactions to given hosts.
+# 
+limit:
+  hosts:
+    - tree07
+
+# Hosts & projects to interact with.
+# 
+hosts:
+  tree07:
+    ddev:
+      docroot: "."
+      type: "php"
+      mysql: "5.7"
+    www: "/srv/www/"
+    projects: [] # Fetch all
+    

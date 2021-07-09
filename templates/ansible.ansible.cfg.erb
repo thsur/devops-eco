@@ -1,0 +1,10 @@
+# Cf. https://github.com/ansible/ansible/blob/devel/examples/ansible.cfg
+
+[defaults]
+roles_path        = <%= config.roles %>/custom:<%= config.roles %>/contrib
+collections_paths = <%= config.collections %>
+inventory         = <%= config.inventory %>
+stdout_callback   = yaml
+
+[ssh_connection]
+pipelining = true

@@ -1,0 +1,17 @@
+#!/usr/bin/bash
+
+cd {{ project_sync_dir }}
+
+inotifywait -r -e close_write,moved_to,create -m {{ current_host.config.watch.modules | default('sites/all/modules/') }} |
+while read -r dir events file; do
+    
+    source=${dir}${file}
+    target="{{ www_dir }}/{{ project }}/$dir"
+    
+    echo "Source: $source"
+    echo "Target: $target"
+
+    rsync -avz $source {{ current_host.name }}:$target
+done
+
+cd -

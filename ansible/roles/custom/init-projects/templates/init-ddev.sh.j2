@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# As reference, see both '$ ddev config --help' 
+# and https://ddev.readthedocs.io/en/stable/users/extend/config_yaml/
+
+ddev config \
+    --docroot="{{ current_host.config.ddev.docroot }}" \
+    --project-tld="local" \
+    --project-name="{{ project | regex_replace('\.[^.]+$','') }}" \
+    --project-type="{{ current_host.config.ddev.type }}" \
+    --mariadb-version="" \
+    --mysql-version="{{ current_host.config.ddev.mysql }}" \
+    --webserver-type="apache-fpm" \
+    --timezone="Europe/Berlin" \
+    --web-environment="DEV_MACHINE=true"

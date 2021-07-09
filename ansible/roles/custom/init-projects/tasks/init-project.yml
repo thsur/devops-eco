@@ -1,0 +1,60 @@
+- name: "Assemble local paths for project {{ project }}"
+  set_fact:
+    project_config_dir: "{{ project_config_path | replace('__project__', project) }}" 
+    project_sync_dir: "{{ sync_path | replace('__project__', project) }}" 
+    project_dir: "{{ project_path | replace('__project__', project) }}" 
+      
+- name: "Create local directory {{ project_sync_dir }}"
+  file:
+    path: "{{ project_sync_dir }}"
+    state: directory
+  delegate_to: 127.0.0.1
+
+- name: "Create local directory {{ project_config_dir }}"
+  file:
+    path: "{{ project_config_dir }}"
+    state: directory
+    mode: "0700"
+  delegate_to: 127.0.0.1
+
+- name: "Create local directory {{ project_config_dir }}/bin"
+  file:
+    path: "{{ project_config_dir }}/bin"
+    state: directory
+    mode: "0700"
+  delegate_to: 127.0.0.1
+
+- name: "Create local directory {{ project_config_dir }}/tmp"
+  file:
+    path: "{{ project_config_dir }}/tmp"
+    state: directory
+    mode: "0700"
+  delegate_to: 127.0.0.1
+  
+- name: "Drop host info file into {{ project_config_dir }}"
+  ansible.builtin.template:
+      src: templates/host.yml.j2
+      dest: "{{ project_config_dir }}/.host.yml"
+      mode: "0600"
+  delegate_to: 127.0.0.1
+
+- name: "Drop Rakefile into {{ project_dir }}"
+  ansible.builtin.template:
+      src: templates/Rakefile.rb.j2
+      dest: "{{ project_dir }}/Rakefile.rb"
+  delegate_to: 127.0.0.1
+
+- name: "Drop bin files into {{ project_dir }}/bin"
+  ansible.builtin.template:
+      src: "templates/{{ fn }}.j2"
+      dest: "{{ project_config_dir }}/bin/{{ fn }}"
+      mode: "0700"
+  loop:
+    - "watch-themes.sh"
+    - "watch-modules.sh"
+    - "watch-top.sh"
+    - "watch-all.sh"
+    - "init-ddev.sh"
+  loop_control:
+    loop_var: fn
+  delegate_to: 127.0.0.1
